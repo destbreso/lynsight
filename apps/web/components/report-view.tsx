@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { AnalyzedReport, ReportSummary } from '@lynsight/core';
-import type { ParsedReport, Severity } from '@lynsight/parser';
+import type { FileNode, ParsedReport, Severity } from '@lynsight/parser';
 import type { EnrichedFinding, EnrichedNarratives } from '@lynsight/llm';
 import SeverityChart from './severity-chart';
 import CategoryChart from './category-chart';
@@ -14,6 +14,14 @@ export interface AnalyzeResponse {
   summary: ReportSummary;
   /** Full AnalyzedReport - used by the PDF endpoint. */
   analyzed: AnalyzedReport;
+  /** Browseable extracted bundle. Absent on parse-only flows. */
+  bundle?: {
+    id: string;
+    tree: FileNode;
+    expiresAt: number;
+  };
+  /** Map of finding id → relative file paths inside the bundle. */
+  relatedFilesById?: Record<string, string[]>;
   enriched: {
     providerName: string;
     narratives: EnrichedNarratives;
@@ -44,8 +52,15 @@ const NARRATIVE_SECTIONS: Array<{ key: keyof EnrichedNarratives; title: string; 
   { key: 'compliance', title: 'Compliance posture', icon: '✅' },
 ];
 
-export default function ReportView({ data }: { data: AnalyzeResponse }) {
-  const { report, summary, analyzed, enriched } = data;
+export default function ReportView({
+  data,
+  onOpenFile,
+}: {
+  data: AnalyzeResponse;
+  /** Provided by the parent when a browseable bundle is available. */
+  onOpenFile?: (path: string) => void;
+}) {
+  const { report, summary, analyzed, enriched, bundle, relatedFilesById } = data;
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -275,6 +290,8 @@ export default function ReportView({ data }: { data: AnalyzeResponse }) {
                 )
               : {}
           }
+          relatedFilesById={relatedFilesById ?? {}}
+          onOpenFile={bundle ? onOpenFile : undefined}
         />
       </Panel>
 

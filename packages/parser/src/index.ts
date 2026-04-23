@@ -1,10 +1,13 @@
-import { openArchive, readFirstMatch } from './archive.js';
+import { ExtractedArchive, openArchive, readFirstMatch } from './archive.js';
 import { scanLog } from './log.js';
 import { parseReportDat } from './report-dat.js';
 import { ParsedReport } from './types.js';
 
 export * from './types.js';
 export { openArchive } from './archive.js';
+export type { ExtractedArchive } from './archive.js';
+export { buildFileTree } from './tree.js';
+export type { FileNode } from './tree.js';
 
 export interface ParseOptions {
   /**
@@ -22,7 +25,15 @@ export interface ParseOptions {
  */
 export async function parseAudit(input: string, _options: ParseOptions = {}): Promise<ParsedReport> {
   const archive = await openArchive(input);
+  return parseExtractedArchive(archive);
+}
 
+/**
+ * Same as `parseAudit` but starts from an already-opened archive. Use this
+ * when the caller wants to retain the extracted directory (for example to
+ * serve its files over HTTP for the file explorer panel).
+ */
+export async function parseExtractedArchive(archive: ExtractedArchive): Promise<ParsedReport> {
   const reportFile = await readFirstMatch(archive, [
     'lynis-report.dat',
     'report.dat',

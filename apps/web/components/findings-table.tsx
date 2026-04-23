@@ -23,9 +23,14 @@ const SEV_BORDER: Record<Severity, string> = {
 export default function FindingsTable({
   findings,
   enrichedById,
+  relatedFilesById = {},
+  onOpenFile,
 }: {
   findings: Finding[];
   enrichedById: Record<string, string>;
+  relatedFilesById?: Record<string, string[]>;
+  /** Optional: when set, each finding shows pills that open the explorer. */
+  onOpenFile?: (path: string) => void;
 }) {
   const [filter, setFilter] = useState<Severity | 'all' | 'ai'>('all');
   const [query, setQuery] = useState('');
@@ -112,11 +117,16 @@ export default function FindingsTable({
 
       <div className="space-y-2 text-sm">
         {filtered.length === 0 && <p className="text-slate-400">No findings match the filter.</p>}
-        {filtered.map((f) => {
+        {filtered.map((f, i) => {
           const llm = enrichedById[f.id];
+          // Lynis can emit the same Test ID more than once (e.g. when the
+          // same control is reported as both a warning and a suggestion, or
+          // surfaces in multiple sections of lynis-report.dat). React keys
+          // must be unique, so we compose `kind:id:index`.
+          const rowKey = `${f.kind}:${f.id}:${i}`;
           return (
             <details
-              key={f.id}
+              key={rowKey}
               // Auto-open AI-enriched findings so the per-finding insights
               // (commands, verify, rollback) are immediately visible.
               open={Boolean(llm)}
@@ -140,6 +150,24 @@ export default function FindingsTable({
                 )}
               </summary>
               <div className="mt-3 space-y-3 text-xs">
+                {onOpenFile && relatedFilesById[f.id] && relatedFilesById[f.id]!.length > 0 && (
+                  <div>
+                    <div className="mb-1 font-semibold text-slate-500">📄 Sources in bundle</div>
+                    <div className="flex flex-wrap gap-1">
+                      {relatedFilesById[f.id]!.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => onOpenFile(p)}
+                          title={`Open ${p} in the explorer`}
+                          className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-mono text-[10px] text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-300"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {f.details && (
                   <div>
                     <div className="mb-1 font-semibold text-slate-500">Details</div>

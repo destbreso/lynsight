@@ -1,7 +1,16 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import type { FileNode } from '@lynsight/parser';
 import ReportView, { type AnalyzeResponse } from './report-view';
+import FileExplorer from './file-explorer';
+
+interface BundleInfo {
+  id: string;
+  tree: FileNode;
+  expiresAt: number;
+  fileCount: number;
+}
 
 interface PingResult {
   ok: boolean;
@@ -23,7 +32,10 @@ const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; suggestedModel: strin
   ollama: { baseUrl: 'http://localhost:11434/v1', suggestedModel: 'llama3.1:8b' },
   openai: { baseUrl: 'https://api.openai.com/v1', suggestedModel: 'gpt-4o-mini' },
   'openai-compatible': { baseUrl: 'http://localhost:1234/v1', suggestedModel: '' },
-  anthropic: { baseUrl: 'https://api.anthropic.com/v1', suggestedModel: 'claude-3-5-sonnet-latest' },
+  anthropic: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    suggestedModel: 'claude-3-5-sonnet-latest',
+  },
 };
 
 export default function UploadForm() {
@@ -43,6 +55,42 @@ export default function UploadForm() {
 
   const [ping, setPing] = useState<PingResult | null>(null);
   const [pinging, setPinging] = useState(false);
+
+  // Bundle state — populated as soon as the user picks a tar.gz, so the file
+  // explorer is available *before* the analyze step finishes (or even runs).
+  const [bundle, setBundle] = useState<BundleInfo | null>(null);
+  const [uploadingBundle, setUploadingBundle] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [explorerOpen, setExplorerOpen] = useState(false);
+  const [explorerPath, setExplorerPath] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function openFileInExplorer(path: string) {
+    setExplorerPath(path);
+    setExplorerOpen(true);
+  }
+
+  async function uploadBundle(file: File) {
+    setUploadingBundle(true);
+    setError(null);
+    setBundle(null);
+    setUploadedFileName(file.name);
+    setData(null); // a new bundle invalidates any prior analysis
+    try {
+      const fd = new FormData();
+      fd.set('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = (await res.json()) as { bundle?: BundleInfo; error?: string };
+      if (!res.ok || !json.bundle) {
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+      setBundle(json.bundle);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploadingBundle(false);
+    }
+  }
 
   // When provider changes, reset suggested base URL + clear discovered state.
   useEffect(() => {
@@ -106,13 +154,18 @@ export default function UploadForm() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!bundle) {
+      setError('Upload a Lynis archive first.');
+      return;
+    }
     setBusy(true);
     setError(null);
     setData(null);
     try {
       const fd = new FormData(e.currentTarget);
-      // Override the model field with the controlled select value, since the
-      // <select> is controlled and may not be in sync with FormData.
+      // Reuse the already-extracted bundle instead of re-uploading the file.
+      fd.delete('file');
+      fd.set('bundleId', bundle.id);
       fd.set('model', model);
       fd.set('baseUrl', baseUrl);
       const res = await fetch('/api/analyze', { method: 'POST', body: fd });
@@ -138,10 +191,14 @@ export default function UploadForm() {
           <label className="sm:col-span-2">
             <span className="mb-1 block text-sm font-medium">Lynis audit (.tar.gz)</span>
             <input
+              ref={fileInputRef}
               type="file"
               name="file"
               accept=".gz,.tgz,.tar,.tar.gz,application/gzip,application/x-gzip,application/x-tar"
-              required
+              onChange={(e) => {
+                const f = e.currentTarget.files?.[0];
+                if (f) void uploadBundle(f);
+              }}
               className="block w-full rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm dark:border-slate-700 dark:bg-slate-800"
             />
           </label>
@@ -154,13 +211,18 @@ export default function UploadForm() {
               onChange={(e) => setLlm(e.target.checked)}
               className="h-4 w-4"
             />
-            <span className="text-sm">Enrich with an LLM (executive summary, risk narrative, attack surface, action roadmap, compliance, per-finding remediation)</span>
+            <span className="text-sm">
+              Enrich with an LLM (executive summary, risk narrative, attack surface, action roadmap,
+              compliance, per-finding remediation)
+            </span>
           </label>
 
           {llm && (
             <>
               <label>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Provider</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Provider
+                </span>
                 <select
                   name="provider"
                   value={provider}
@@ -207,11 +269,15 @@ export default function UploadForm() {
                     className="block w-full rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm dark:border-slate-700 dark:bg-slate-800"
                   />
                 )}
-                {modelsError && <span className="mt-1 block text-xs text-red-500">{modelsError}</span>}
+                {modelsError && (
+                  <span className="mt-1 block text-xs text-red-500">{modelsError}</span>
+                )}
               </label>
 
               <label>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Base URL</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Base URL
+                </span>
                 <input
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
@@ -220,7 +286,9 @@ export default function UploadForm() {
               </label>
 
               <label>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">API key (optional)</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  API key (optional)
+                </span>
                 <input
                   name="apiKey"
                   type="password"
@@ -232,7 +300,9 @@ export default function UploadForm() {
               </label>
 
               <label>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Language</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Language
+                </span>
                 <select
                   name="language"
                   defaultValue="en"
@@ -248,7 +318,9 @@ export default function UploadForm() {
               </label>
 
               <label>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Audience</span>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Audience
+                </span>
                 <input
                   name="audience"
                   defaultValue="mixed (engineers + management)"
@@ -274,7 +346,8 @@ export default function UploadForm() {
         <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !bundle || uploadingBundle}
+            title={!bundle ? 'Upload a Lynis archive first' : undefined}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
           >
             {busy ? 'Analyzing…' : 'Analyze'}
@@ -283,7 +356,61 @@ export default function UploadForm() {
         </div>
       </form>
 
-      {data && <ReportView data={data} />}
+      {/* Bundle ready / explorer trigger — shown as soon as the upload finishes,
+          BEFORE the analyze step. */}
+      {(uploadingBundle || bundle) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-300/60 bg-indigo-50/50 p-4 text-sm dark:border-indigo-900/60 dark:bg-indigo-950/20">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden>
+              📂
+            </span>
+            <div>
+              {uploadingBundle ? (
+                <span className="text-slate-500">Extracting bundle…</span>
+              ) : (
+                <>
+                  <div className="font-semibold text-slate-700 dark:text-slate-200">
+                    Bundle ready
+                    {uploadedFileName && (
+                      <span className="ml-2 font-mono text-xs text-slate-400">
+                        {uploadedFileName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {bundle!.fileCount} files · explore the audit contents now — you don’t have to
+                    wait for the analysis.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          {bundle && (
+            <button
+              type="button"
+              onClick={() => {
+                setExplorerPath(null);
+                setExplorerOpen(true);
+              }}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+            >
+              📂 Explore bundle
+            </button>
+          )}
+        </div>
+      )}
+
+      {data && <ReportView data={data} onOpenFile={bundle ? openFileInExplorer : undefined} />}
+
+      {bundle && (
+        <FileExplorer
+          bundleId={bundle.id}
+          tree={bundle.tree}
+          open={explorerOpen}
+          initialPath={explorerPath}
+          onClose={() => setExplorerOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -301,9 +428,7 @@ function PingBadge({ ping, model }: { ping: PingResult; model: string }) {
     <span className="ml-3 inline-flex flex-wrap items-center gap-2 rounded-md bg-green-50 px-2 py-1 text-xs text-green-700 dark:bg-green-950 dark:text-green-300">
       ✓ Connected · {ping.latencyMs}ms · {ping.modelCount} models
       {!modelOk && (
-        <span className="text-amber-600 dark:text-amber-400">
-          · model `{model}` not found
-        </span>
+        <span className="text-amber-600 dark:text-amber-400">· model `{model}` not found</span>
       )}
     </span>
   );
