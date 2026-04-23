@@ -14,7 +14,7 @@ import {
 } from './prompts.js';
 
 export interface EnrichedFinding extends Finding {
-  /** LLM-generated remediation in Markdown. Optional — may be absent on errors. */
+  /** LLM-generated remediation in Markdown. Optional - may be absent on errors. */
   llmRemediation?: string;
 }
 

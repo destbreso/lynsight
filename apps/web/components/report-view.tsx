@@ -12,7 +12,7 @@ import MarkdownView from './markdown-view';
 export interface AnalyzeResponse {
   report: ParsedReport;
   summary: ReportSummary;
-  /** Full AnalyzedReport — used by the PDF endpoint. */
+  /** Full AnalyzedReport - used by the PDF endpoint. */
   analyzed: AnalyzedReport;
   enriched: {
     providerName: string;
@@ -195,7 +195,7 @@ export default function ReportView({ data }: { data: AnalyzeResponse }) {
 
       {summary.strengths.length > 0 && (
         <Panel
-          title={`✓ Strengths — ${summary.strengths.length} hardening controls in place`}
+          title={`✓ Strengths - ${summary.strengths.length} hardening controls in place`}
           subtitle={
             summary.strengthsPointsMax > 0
               ? `${summary.strengthsPointsAwarded} / ${summary.strengthsPointsMax} hardening points awarded`
@@ -290,7 +290,10 @@ export default function ReportView({ data }: { data: AnalyzeResponse }) {
             Auditor: report.meta.auditorName,
             Started: report.meta.reportDatetimeStart,
           }).map(([k, v]) => (
-            <div key={k} className="flex justify-between border-b border-slate-100 py-1 dark:border-slate-800">
+            <div
+              key={k}
+              className="flex justify-between border-b border-slate-100 py-1 dark:border-slate-800"
+            >
               <dt className="text-slate-500">{k}</dt>
               <dd className="font-mono text-xs">{v == null ? '—' : String(v)}</dd>
             </div>

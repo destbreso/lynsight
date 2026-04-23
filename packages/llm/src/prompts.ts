@@ -53,7 +53,7 @@ export function riskNarrativePrompt(report: AnalyzedReport, _ctx: PromptContext)
   return `Write a 2-3 paragraph narrative of the security posture of this host.
 Tell a story: what's the threat picture, which subsystems are weakest, what
 patterns emerge across categories. Cite test IDs when relevant. Avoid
-listing every finding — focus on themes.
+listing every finding - focus on themes.
 
 System: ${r.system.osFullName ?? r.system.os ?? 'unknown'} on ${r.system.hostname ?? 'unknown host'}
 Risk score: ${summary.riskScore}/100 (grade ${summary.grade})
@@ -89,7 +89,7 @@ A bullet list of what is exposed (services, protocols, weak crypto, open auth pa
 3-5 numbered, concrete steps to shrink the surface, ordered by impact-per-effort.
 
 Findings:
-${surface || '(no network/auth findings — note that this is unusual and worth verifying)'}`;
+${surface || '(no network/auth findings - note that this is unusual and worth verifying)'}`;
 }
 
 export function actionRoadmapPrompt(report: AnalyzedReport, _ctx: PromptContext): string {
@@ -116,7 +116,7 @@ ${top}`;
 export function compliancePosturePrompt(report: AnalyzedReport, _ctx: PromptContext): string {
   const totals = report.summary.totals;
   return `Briefly map the audit findings against common control frameworks.
-For each framework, give a 1-line posture statement (e.g. "Partial — 4 control
+For each framework, give a 1-line posture statement (e.g. "Partial - 4 control
 gaps in Access Control") and 2-3 specific finding IDs that drive the gap.
 
 Frameworks to cover:
@@ -138,11 +138,11 @@ Use a Markdown table:
 export function remediationPrompt(finding: Finding, ctx: PromptContext): string {
   const osHint = ctx.os
     ? `Target OS: ${ctx.os}. Tailor every command to that distribution's package manager and init system.`
-    : `Target OS is not specified — provide commands for the two most common Linux families (Debian/Ubuntu with apt + RHEL/Fedora with dnf). Mark each command block with the family it targets.`;
+    : `Target OS is not specified - provide commands for the two most common Linux families (Debian/Ubuntu with apt + RHEL/Fedora with dnf). Mark each command block with the family it targets.`;
 
   return `You are remediating a Lynis finding on a real production host. Be
 concrete: copy-pasteable commands, exact file paths, exact config keys.
-Never invent commands you are not certain about — if you don't know, say so.
+Never invent commands you are not certain about - if you don't know, say so.
 
 ${osHint}
 

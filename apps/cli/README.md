@@ -1,6 +1,6 @@
 # @lynsight/cli
 
-Open-source Lynis audit reporter — CLI surface.
+Open-source Lynis audit reporter - CLI surface.
 
 ```bash
 pnpm install
