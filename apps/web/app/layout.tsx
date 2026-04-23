@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <nav className="text-sm text-slate-500">
               <a
                 className="hover:text-indigo-500"
-                href="https://github.com/coverfleet-llc/lynsight"
+                href="https://github.com/destbreso/lynsight"
                 target="_blank"
                 rel="noreferrer"
               >
