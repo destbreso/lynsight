@@ -1,0 +1,17 @@
+node_modules
+dist
+.next
+out
+.turbo
+.DS_Store
+*.log
+.env
+.env.local
+.env.*.local
+coverage
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+tmp
+uploads
+.lynsight-cache

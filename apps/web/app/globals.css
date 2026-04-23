@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html, body {
+  @apply bg-slate-50 text-slate-900;
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    @apply bg-[#0b1020] text-slate-100;
+  }
+}

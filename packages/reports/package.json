@@ -1,0 +1,33 @@
+{
+  "name": "@lynsight/reports",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@lynsight/core": "workspace:*",
+    "@lynsight/llm": "workspace:*",
+    "@lynsight/parser": "workspace:*"
+  },
+  "peerDependencies": {
+    "playwright": "^1.48.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "playwright": "^1.48.0",
+    "typescript": "^5.6.2"
+  }
+}
